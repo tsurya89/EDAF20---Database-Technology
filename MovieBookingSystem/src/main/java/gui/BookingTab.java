@@ -70,7 +70,16 @@ public class BookingTab {
 					/* --- TODO: should attempt to book a ticket via the database --- */
 					/* --- do not forget to report booking number! --- */
 					/* --- update the displayed details (free seats) --- */
-					report("Booked one ticket to "+movie+" on "+date);
+					int bookingNumber = db.bookTicket(movie, date);
+					if (bookingNumber > 0) {
+						report("Booked one ticket to "+movie+" on "+date + "\n" + "Booking number: " + bookingNumber);
+						fillShow(movie, date);
+					} else if (bookingNumber == -1) {
+						report("No more available seats!");
+					} else {
+						report("You already have a reservation for "+movie+" on "+date);
+					}
+					
 				});
 		
 		report("Ready.");
@@ -109,7 +118,6 @@ public class BookingTab {
 	private void fillDatesList(String m) {
 		List<String> alldates = new ArrayList<String>();
 		if(m!=null) {
-			System.out.println("Movie we are looking at: " + m);
 			// query the database via db
 			/* --- TODO: replace with own code --- */
 			alldates = db.getShowDates(m);

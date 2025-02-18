@@ -56,11 +56,8 @@ public class ReservationsTab {
 	 * Refresh the table view, by getting and replacing the tables content.
 	 */
 	public void updateList() {
-		/* --- TODO: replace with own code using the database object instead --- */
-		System.out.println("Update booking list called.");
-		
+		/* --- TODO: replace with own code using the database object instead --- */		
 		List<Reservation> bookings = db.getReservationData(CurrentUser.instance().getCurrentUserId());
-		System.out.printf("Number of bookings: %d\n", bookings.size());
 		for (Reservation r : bookings) {
 			System.out.println(r.getBookingId());
 		}

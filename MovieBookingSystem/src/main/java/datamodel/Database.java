@@ -171,7 +171,6 @@ public class Database {
             conn.commit();
             conn.setAutoCommit(true);
             while (reservationsResult.next()) {
-                System.out.println("GETTING RES RESULT");
                 int resNum = reservationsResult.getInt("reservationNum");
                 String movieName = reservationsResult.getString("movieName");
                 String date = reservationsResult.getString("reservationDate");
@@ -212,5 +211,154 @@ public class Database {
             }
         }
         return movieNamesList;
+    }
+
+    public int bookTicket(String movieName, String date) {
+        int bookingNumber = getBookingNumber(movieName, date);
+        if (bookingNumber == -1) { // This means that there are no seats available
+            return -1; 
+        } else if (hasReservation(bookingNumber)) { // Already has a booking
+            return -2; 
+        }
+
+        // Now, update the Performance table to decrement freeSeats to simulate booking a ticket
+        try {
+            conn.setAutoCommit(false);
+            String updateSeatsString = "update Performance set freeSeats = freeSeats - 1 where movieName = ? and performanceDate = ?";
+            PreparedStatement updateSeatsStatement = conn.prepareStatement(updateSeatsString);
+            updateSeatsStatement.setString(1, movieName);
+            updateSeatsStatement.setString(2, date);
+            updateSeatsStatement.executeUpdate();
+            conn.commit();
+            conn.setAutoCommit(true);
+            addReservation(bookingNumber);
+            return bookingNumber;
+        } catch (SQLException e) {
+            try {
+                // conn.rollback();
+                conn.setAutoCommit(true);
+                e.printStackTrace();
+            } catch (SQLException e2) {
+                e2.printStackTrace();
+            }
+        }
+        return bookingNumber;
+    }
+
+    public int getBookingNumber(String movieName, String date) {
+        int bookingNumber = -1;
+        try {
+            conn.setAutoCommit(false);
+            String getSeatsAndPerfNumString = "select freeSeats, performanceNum from Performance where movieName = ? and performanceDate = ?";
+            PreparedStatement getSeatsAndPerfNumStmt = conn.prepareStatement(getSeatsAndPerfNumString);
+            getSeatsAndPerfNumStmt.setString(1, movieName);
+            getSeatsAndPerfNumStmt.setString(2, date);
+            ResultSet seatsAndPerfNumRes = getSeatsAndPerfNumStmt.executeQuery();
+            conn.commit();
+            conn.setAutoCommit(true);
+            
+            while (seatsAndPerfNumRes.next()) {
+                int freeSeats = seatsAndPerfNumRes.getInt("freeSeats");
+                if (freeSeats == 0) {
+                    return bookingNumber;
+                }
+                bookingNumber = seatsAndPerfNumRes.getInt("performanceNum");
+                return bookingNumber;
+            }
+        } catch (SQLException e) {
+            try {
+                // conn.rollback();
+                conn.setAutoCommit(true);
+                e.printStackTrace();
+            } catch (SQLException e2) {
+                e2.printStackTrace();
+            }
+        }
+        return bookingNumber;
+    }
+
+    public boolean addReservation(int reservationNum) {
+        String current_username = CurrentUser.instance().getCurrentUserId();
+        try {
+            conn.setAutoCommit(false);
+            Show showToAdd = getShowFromID(reservationNum);
+            String insertReservationString = "INSERT INTO Reservation (reservationNum, username, movieName, reservationDate) VALUES (?, ?, ?, ?)";
+            PreparedStatement insertReservationStmt = conn.prepareStatement(insertReservationString);
+            insertReservationStmt.setInt(1, reservationNum);
+            insertReservationStmt.setString(2, current_username);
+            insertReservationStmt.setString(3, showToAdd.getTitle());
+            insertReservationStmt.setString(4, showToAdd.getDate());
+            insertReservationStmt.executeUpdate();
+            conn.commit();
+            conn.setAutoCommit(true);
+            return true;
+        } catch (SQLException e) {
+            try {
+                // conn.rollback();
+                conn.setAutoCommit(true);
+                e.printStackTrace();
+            } catch (SQLException e2) {
+                e2.printStackTrace();
+            }
+        }
+        return false;
+    }
+
+    public Show getShowFromID(int reservationNum) {
+        String movieName = "";
+        String theaterName = "";
+        String performanceDate = "";
+        int freeSeats = 0;
+        try {
+            conn.setAutoCommit(false);
+            String getShowString = "select * from Performance where performanceNum = ?";
+            PreparedStatement getShowStatement = conn.prepareStatement(getShowString);
+            getShowStatement.setInt(1, reservationNum);
+            ResultSet result = getShowStatement.executeQuery();
+            while (result.next()) {
+                movieName = result.getString("movieName");
+                theaterName = result.getString("theaterName");
+                performanceDate = result.getString("performanceDate");
+                freeSeats = result.getInt("freeSeats");
+            }
+            conn.commit();
+            conn.setAutoCommit(true);
+        } catch (SQLException e) {
+            try {
+                conn.rollback();
+                conn.setAutoCommit(true);
+                e.printStackTrace();
+            } catch (SQLException e2) {
+                e2.printStackTrace();
+            }
+        }
+		return new Show(movieName, performanceDate, theaterName, freeSeats);
+    }
+
+    public boolean hasReservation(int performanceNum) {
+        String current_username = CurrentUser.instance().getCurrentUserId();
+        try {
+            conn.setAutoCommit(false);
+            String getResString = "select * from Reservation where username = ? and reservationNum = ?";
+            PreparedStatement getResStmt = conn.prepareStatement(getResString);
+            getResStmt.setString(1, current_username);
+            getResStmt.setInt(2, performanceNum);
+            ResultSet result = getResStmt.executeQuery();
+            conn.commit();
+            conn.setAutoCommit(true);
+            if (!result.next()) {
+                return false;
+            }
+            return true;
+        } catch (SQLException e) {
+            try {
+                // conn.rollback();
+                conn.setAutoCommit(true);
+                e.printStackTrace();
+            } catch (SQLException e2) {
+                e2.printStackTrace();
+            }
+        }
+        return true;
     }
 }
